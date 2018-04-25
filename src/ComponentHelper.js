@@ -69,7 +69,8 @@ module.exports.findDirtyComponents = function(el, syncedComps, cachedData) {
     }
 
     var oldCompData = cachedData[compKey];
-    if (compKey.endsWith("---position---")){
+    if (compKey.endsWith("---position---") || compKey === "position"
+        || compKey.endsWith("---scale---") || compKey === "scale"){
       const epsilon = 0.02;
       if ((Math.abs(oldCompData.x - newCompData.x) > epsilon) ||
           (Math.abs(oldCompData.y - newCompData.y) > epsilon) ||
@@ -77,7 +78,7 @@ module.exports.findDirtyComponents = function(el, syncedComps, cachedData) {
         dirtyComps.push(schema);
       }
     }
-    else if (compKey.endsWith("---rotation---")){
+    else if (compKey.endsWith("---rotation---") || compKey === "rotation"){
       const epsilon = 4.00;
       if ((Math.abs(oldCompData.x - newCompData.x) > epsilon) ||
           (Math.abs(oldCompData.y - newCompData.y) > epsilon) ||
