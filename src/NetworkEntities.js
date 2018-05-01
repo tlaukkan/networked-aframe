@@ -64,15 +64,11 @@ class NetworkEntities {
 
     if (this.hasEntity(networkId)) {
       this.entities[networkId].emit('networkUpdate', {entityData: entityData}, false);
-    } else if (!isCompressed && this.isFullSync(entityData)) {
+    } else if (!isCompressed && entityData.isFirstSync) {
       this.receiveFirstUpdateFromEntity(entityData);
+    } else {
+      NAF.log.error("Received update for unknown entity.");
     }
-  }
-
-  isFullSync(entityData) {
-    var numSentComps = Object.keys(entityData.components).length;
-    var numTemplateComps = NAF.schemas.getComponents(entityData.template).length;
-    return numSentComps === numTemplateComps;
   }
 
   receiveFirstUpdateFromEntity(entityData) {
@@ -128,12 +124,12 @@ class NetworkEntities {
     scene.appendChild(el);
   }
 
-  completeSync(targetClientId) {
+  completeSync(targetClientId, isFirstSync) {
     for (var id in this.entities) {
       if (this.entities.hasOwnProperty(id)) {
         this.entities[id].emit(
           'syncAll',
-          { targetClientId },
+          { targetClientId, isFirstSync },
           false
         );
       }

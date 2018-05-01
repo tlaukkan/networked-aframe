@@ -494,16 +494,11 @@
 
 	      if (this.hasEntity(networkId)) {
 	        this.entities[networkId].emit('networkUpdate', { entityData: entityData }, false);
-	      } else if (!isCompressed && this.isFullSync(entityData)) {
+	      } else if (!isCompressed && entityData.isFirstSync) {
 	        this.receiveFirstUpdateFromEntity(entityData);
+	      } else {
+	        NAF.log.error("Received update for unknown entity.");
 	      }
-	    }
-	  }, {
-	    key: 'isFullSync',
-	    value: function isFullSync(entityData) {
-	      var numSentComps = Object.keys(entityData.components).length;
-	      var numTemplateComps = NAF.schemas.getComponents(entityData.template).length;
-	      return numSentComps === numTemplateComps;
 	    }
 	  }, {
 	    key: 'receiveFirstUpdateFromEntity',
@@ -559,10 +554,10 @@
 	    }
 	  }, {
 	    key: 'completeSync',
-	    value: function completeSync(targetClientId) {
+	    value: function completeSync(targetClientId, isFirstSync) {
 	      for (var id in this.entities) {
 	        if (this.entities.hasOwnProperty(id)) {
-	          this.entities[id].emit('syncAll', { targetClientId: targetClientId }, false);
+	          this.entities[id].emit('syncAll', { targetClientId: targetClientId, isFirstSync: isFirstSync }, false);
 	        }
 	      }
 	    }
@@ -836,7 +831,7 @@
 	    value: function dataChannelOpen(clientId) {
 	      NAF.log.write('Opened data channel from ' + clientId);
 	      this.activeDataChannels[clientId] = true;
-	      this.entities.completeSync(clientId);
+	      this.entities.completeSync(clientId, true);
 
 	      var evt = new CustomEvent('clientConnected', { detail: { clientId: clientId } });
 	      document.body.dispatchEvent(evt);
@@ -1846,7 +1841,7 @@
 	          NAF.log.warn("Networked element was removed before ever getting the chance to syncAll");
 	          return;
 	        }
-	        _this.syncAll();
+	        _this.syncAll(0, true);
 	      }, 0);
 	    }
 
@@ -1919,21 +1914,23 @@
 	  },
 
 	  onSyncAll: function onSyncAll(e) {
-	    var targetClientId = e.detail.targetClientId;
+	    var _e$detail = e.detail,
+	        targetClientId = _e$detail.targetClientId,
+	        isFirstSync = _e$detail.isFirstSync;
 
-	    this.syncAll(targetClientId);
+	    this.syncAll(targetClientId, isFirstSync);
 	  },
 
 	  /* Sending updates */
 
-	  syncAll: function syncAll(targetClientId) {
+	  syncAll: function syncAll(targetClientId, isFirstSync) {
 	    if (!this.canSync()) {
 	      return;
 	    }
 	    this.updateNextSyncTime();
 	    var syncedComps = this.getAllSyncedComponents();
 	    var components = componentHelper.gatherComponentsData(this.el, syncedComps);
-	    var syncData = this.createSyncData(components);
+	    var syncData = this.createSyncData(components, isFirstSync);
 	    // console.error('syncAll', syncData, NAF.clientId);
 	    if (targetClientId) {
 	      NAF.connection.sendDataGuaranteed(targetClientId, 'u', syncData);
@@ -1975,7 +1972,7 @@
 	    this.nextSyncTime = NAF.utils.now() + 1000 / NAF.options.updateRate;
 	  },
 
-	  createSyncData: function createSyncData(components) {
+	  createSyncData: function createSyncData(components, isFirstSync) {
 	    var data = this.data;
 	    var sync = {
 	      0: 0, // 0 for not compressed
@@ -1984,7 +1981,8 @@
 	      lastOwnerTime: this.lastOwnerTime,
 	      template: data.template,
 	      parent: this.getParentId(),
-	      components: components
+	      components: components,
+	      isFirstSync: !!isFirstSync
 	    };
 	    return sync;
 	  },
@@ -2458,6 +2456,7 @@
 
 	  var compressedComps = this.compressComponents(syncData.components, allComponents);
 	  compressed.push(compressedComps); // 5
+	  compressed.push(syncData.isFirstSync); // 6
 
 	  return compressed;
 	};
@@ -2504,6 +2503,7 @@
 	  var compressedComps = compressed[5];
 	  components = this.decompressComponents(compressedComps, components);
 	  entityData.components = components;
+	  entityData.isFirstSync = compressed[6];
 
 	  return entityData;
 	};

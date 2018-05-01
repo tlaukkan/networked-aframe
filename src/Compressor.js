@@ -24,6 +24,7 @@ module.exports.compressSyncData = function(syncData, allComponents) {
 
   var compressedComps = this.compressComponents(syncData.components, allComponents);
   compressed.push(compressedComps); // 5
+  compressed.push(syncData.isFirstSync); // 6
 
   return compressed;
 };
@@ -70,6 +71,7 @@ module.exports.decompressSyncData = function(compressed, components) {
   var compressedComps = compressed[5];
   components = this.decompressComponents(compressedComps, components);
   entityData.components = components;
+  entityData.isFirstSync = compressed[6];
 
   return entityData;
 };

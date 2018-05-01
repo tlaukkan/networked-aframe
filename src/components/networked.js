@@ -122,7 +122,7 @@ AFRAME.registerComponent('networked', {
           NAF.log.warn("Networked element was removed before ever getting the chance to syncAll");
           return;
         }
-        this.syncAll();
+        this.syncAll(0, true);
       }, 0);
     }
 
@@ -195,20 +195,20 @@ AFRAME.registerComponent('networked', {
   },
 
   onSyncAll: function(e) {
-    const { targetClientId } = e.detail;
-    this.syncAll(targetClientId);
+    const { targetClientId, isFirstSync } = e.detail;
+    this.syncAll(targetClientId, isFirstSync);
   },
 
   /* Sending updates */
 
-  syncAll: function(targetClientId) {
+  syncAll: function(targetClientId, isFirstSync) {
     if (!this.canSync()) {
       return;
     }
     this.updateNextSyncTime();
     var syncedComps = this.getAllSyncedComponents();
     var components = componentHelper.gatherComponentsData(this.el, syncedComps);
-    var syncData = this.createSyncData(components);
+    var syncData = this.createSyncData(components, isFirstSync);
     // console.error('syncAll', syncData, NAF.clientId);
     if (targetClientId) {
       NAF.connection.sendDataGuaranteed(targetClientId, 'u', syncData);
@@ -250,7 +250,7 @@ AFRAME.registerComponent('networked', {
     this.nextSyncTime = NAF.utils.now() + 1000 / NAF.options.updateRate;
   },
 
-  createSyncData: function(components) {
+  createSyncData: function(components, isFirstSync) {
     var data = this.data;
     var sync = {
       0: 0, // 0 for not compressed
@@ -259,7 +259,8 @@ AFRAME.registerComponent('networked', {
       lastOwnerTime: this.lastOwnerTime,
       template: data.template,
       parent: this.getParentId(),
-      components: components
+      components: components,
+      isFirstSync: !!isFirstSync
     };
     return sync;
   },
